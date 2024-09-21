@@ -1,0 +1,72 @@
+import cv2 as cv
+import numpy as np
+
+### Variables:
+charSet='$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{[]?-_+~<>i!lI;:,"^` '
+resolution=50
+otsuFloor=175   #for contrust filter
+
+### Init:
+charListTemp=list(charSet)
+charList=charListTemp[::-1]
+charNum=len(charList)
+buffer=255/charNum
+img=cv.imread(r'image_location', 0)     #ENTER THE IMAGE LOCATION
+if img is None: print('Error: img did not load.')    #debug message
+windowFinal='Final image'
+windowBase='Base image'
+windowR2C='Ready to convert'
+cv.namedWindow(windowFinal,cv.WINDOW_NORMAL)
+cv.namedWindow(windowBase,cv.WINDOW_NORMAL)
+#cv.namedWindow(windowR2C,cv.WINDOW_NORMAL)
+
+
+### Ready to convert matrix:
+ret, imgCon = cv.threshold(img,otsuFloor,255,cv.THRESH_OTSU)
+if ret is None:
+    print('Error: Contrust Failed.')
+    exit()
+
+imgRes = cv.resize(imgCon, (resolution,resolution))
+imgR2C = np.zeros((resolution, resolution), dtype=np.uint8)
+imgIndex = np.array([[None for _ in range(resolution)] for _ in range(resolution)])
+thresh = [i for i in range(1,(charNum+1))]
+threshTrue = [thresh[i]*buffer for i in range(len(thresh))]
+
+for i in range(len(imgRes)):
+    for j in range(len(imgRes[i])):
+        for z in range(len(thresh)):
+            if imgRes[i][j] <= threshTrue[z]:
+                imgR2C[i][j]=threshTrue[z]
+                imgIndex[i][j]=thresh[z]
+                break
+
+
+### Conversion:
+charMatrix=np.array([[None for _ in range(resolution)] for _ in range(resolution)])
+for i in range(len(charMatrix)):
+    for j in range(len(charMatrix[i])):
+        index = imgIndex[i][j]-1
+        charMatrix[i][j] = charList[index]
+
+### Create final image:
+resFinal=2000
+resRatio=resFinal/resolution
+imgFinal = np.zeros((resFinal, resFinal), dtype=np.uint8)
+fondName=cv.FONT_HERSHEY_SIMPLEX
+fondSize=1
+fondColor=(255,255,255)
+fondThickness=2
+fontSpace=0
+for i in range(len(imgR2C)):
+    for j in range(len(imgR2C[i])):
+        txt=charMatrix[j][i]
+        pos=(int((resRatio+fontSpace)*i), int((resRatio+fontSpace)*j))
+        cv.putText(imgFinal, txt, pos, fondName, fondSize,fondColor, fondThickness)
+
+### Visualization:
+#cv.imshow(windowR2C,imgR2C)
+cv.imshow(windowBase,img)
+cv.imshow(windowFinal,imgFinal)
+cv.waitKey(0)
+cv.destroyAllWindows()
